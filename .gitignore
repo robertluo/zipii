@@ -4,3 +4,6 @@
 /.make.*
 /classes
 /cljs-test-runner-out
+
+.clj-kondo/.cache/
+.lsp/.cache
