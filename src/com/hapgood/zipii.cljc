@@ -34,24 +34,24 @@
 (defn- make-end
   "Create a sentinel loc that can only result from navigating beyond the limits of the data structure"
   [loc]
-  (let [throw! (fn [](throw (ex-info "Operation not allowed on end loc" {::root loc})))]
+  (let [throw! (fn [] (throw (ex-info "Operation not allowed on end loc" {::root loc})))]
     ^{::end loc} (reify
                    z/Treeish
-                   (tree [loc] (throw!))
-                   (branches [loc] (throw!))
+                   (tree [_] (throw!))
+                   (branches [_] (throw!))
                    z/Zipper
-                   (left [loc] (throw!))
-                   (right [loc] (throw!))
-                   (up [loc] (throw!))
-                   (down [loc] (throw!))
-                   (change [loc t] (throw!))
-                   (insert-left [loc t] (throw!))
-                   (insert-right [loc t] (throw!))
-                   (insert-down [loc t] (throw!))
-                   (delete [loc] (throw!)))))
+                   (left [_] (throw!))
+                   (right [_] (throw!))
+                   (up [_] (throw!))
+                   (down [_] (throw!))
+                   (change [_ _] (throw!))
+                   (insert-left [_ _] (throw!))
+                   (insert-right [_ _] (throw!))
+                   (insert-down [_ _] (throw!))
+                   (delete [_] (throw!)))))
 
 (def end?
-  "Return wormholed loc if loc represents the end of a depth-first walk, otherwise nil"
+  "Returns wormholed loc if loc represents the end of a depth-first walk, otherwise nil"
   (comp ::end meta))
 
 (defn root
@@ -153,7 +153,7 @@
           (cond
             (pos? delta-d) (recur loc0 (up loc1) (comp s (iteratively ls1 right) down))
             (neg? delta-d) (recur (up loc0) loc1 s)
-            true (recur (up loc0) (up loc1) (comp s (iteratively ls1 right) down))))))))
+            :else (recur (up loc0) (up loc1) (comp s (iteratively ls1 right) down))))))))
 
 (def replace "Replaces the node at this loc, without moving" change)
 (defn remove
@@ -200,8 +200,8 @@
 
 (defrecord CollZip [parents]
   z/Zip
-  (z-dn [this t] (when (coll? t) [(sequence t) (CollZip. (conj parents t))] ))
-  (z-up [this branches] [(into (empty (peek parents)) branches) (CollZip. (pop parents))]))
+  (z-dn [_ t] (when (coll? t) [(sequence t) (CollZip. (conj parents t))] ))
+  (z-up [_ branches] [(into (empty (peek parents)) branches) (CollZip. (pop parents))]))
 
 (def coll-zip
   "Return a zipper for nested collections, given a root collection"
@@ -218,8 +218,8 @@
 
 (defrecord ListZip [parents]
   z/Zip
-  (z-dn [this t] (when (list? t) [t (ListZip. (conj parents t))]))
-  (z-up [this branches] [(reverse (into (empty (peek parents)) branches)) (ListZip. (pop parents))])) ; (comp reverse fill-template)
+  (z-dn [_ t] (when (list? t) [t (ListZip. (conj parents t))]))
+  (z-up [_ branches] [(reverse (into (empty (peek parents)) branches)) (ListZip. (pop parents))])) ; (comp reverse fill-template)
 
 (def list-zip
   "Return a zipper for nested lists, given a root list"
@@ -227,25 +227,31 @@
 
 (defrecord VectorZip [parents]
   z/Zip
-  (z-dn [this t] (when (vector? t) [t (VectorZip. (conj parents t))]))
+  (z-dn [_ t] (when (vector? t) [t (VectorZip. (conj parents t))]))
   (z-dn [_ t k] (when (vector? t)
                   (when-let [fulcrum (pivot/pivot t k)]
                     [fulcrum (VectorZip. (conj parents t))])))
-  (z-up [this branches] [(into (empty (peek parents)) branches) (VectorZip. (pop parents))]))
+  (z-up [_ branches] [(into (empty (peek parents)) branches) (VectorZip. (pop parents))]))
 
 (def vector-zip
   "Return a zipper for nested vectors, given a root vector"
   (partial loc/zipper (->VectorZip [])))
 
-(defn ->me [pr] (if (map-entry? pr) pr #?(:clj (clojure.lang.MapEntry. (first pr) (second pr)) :cljs (cljs.core/MapEntry. (first pr) (second pr) nil))))
+(defn ->me
+  "returns a MapEntry for a pair `pr`" 
+  [pr]
+  (if (map-entry? pr)
+    pr 
+    #?(:clj (clojure.lang.MapEntry. (first pr) (second pr))
+       :cljs (cljs.core/MapEntry. (first pr) (second pr) nil))))
 
 (defrecord MapZip [parents]
   z/Zip
-  (z-dn [this t] (when (-> t ->me val map?) [(-> t ->me val sequence) (MapZip. (conj parents t))]))
+  (z-dn [_ t] (when (-> t ->me val map?) [(-> t ->me val sequence) (MapZip. (conj parents t))]))
   (z-dn [_ t k] (when (-> t ->me val map?)
                   (when-let [fulcrum (pivot/pivot (-> t ->me) k)]
                     [fulcrum (VectorZip. (conj parents t))])))
-  (z-up [this branches] (let [[k v] (peek parents)]
+  (z-up [_ branches] (let [[k v] (peek parents)]
                           [(->me [k (into (empty v) (map ->me) branches)]) (MapZip. (pop parents))])))
 
 (def map-zip*
@@ -260,8 +266,8 @@
 
 (defrecord XMLZip [parents]
   z/Zip
-  (z-dn [this t] (when (map? t) [(-> t :content sequence) (XMLZip. (conj parents t))]))
-  (z-up [this branches] [(assoc (peek parents) :content (apply vector branches)) (XMLZip. (pop parents))]))
+  (z-dn [_ t] (when (map? t) [(-> t :content sequence) (XMLZip. (conj parents t))]))
+  (z-up [_ branches] [(assoc (peek parents) :content (apply vector branches)) (XMLZip. (pop parents))]))
 
 (def xml-zip
   "Return a zipper for xml elements (as from xml/parse), given a root element"

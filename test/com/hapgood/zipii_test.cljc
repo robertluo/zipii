@@ -6,7 +6,7 @@
                                        seqable-zip seq-zip coll-zip list-zip vector-zip map-zip map-zip* xml-zip
                                        node children]]
             [com.hapgood.zipper.loc :refer [loc?]]
-            [clojure.test :refer [deftest is are]])
+            [clojure.test :refer [deftest is]])
   (:import #?(:clj (clojure.lang ExceptionInfo))))
 
 (deftest access-move-query
@@ -104,7 +104,7 @@
     (is (= z (-> z rightmost)))
     (is (-> z next end?))
     (is (nil? (-> z prev))))
-  (doseq [[t z] empty-zippers]
+  (doseq [[_ z] empty-zippers]
     (is (empty? (-> z children)))
     (is (nil? (-> z left)))
     (is (nil? (-> z right)))
