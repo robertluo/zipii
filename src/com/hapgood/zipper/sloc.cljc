@@ -3,7 +3,7 @@
 
 (defrecord Siblings [lefts t rights z]
   z/Treeish
-  (tree [this] (first (z/z-up z (map z/tree (concat (reverse lefts) [t] rights))))))
+  (tree [_] (first (z/z-up z (map z/tree (concat (reverse lefts) [t] rights))))))
 
 (def ^:private top
   "A sentinel value representing the path of the tree at the top of a zipper"
@@ -11,25 +11,25 @@
 
 (defrecord Loc [t p z]
   z/Treeish
-  (tree [this] (z/tree t))
+  (tree [_] (z/tree t))
   (branches [this] (first (z/z-dn z (z/tree this))))
   z/Zipper
-  (left [this] (let [[lefts p' rights] p]
+  (left [_] (let [[lefts p' rights] p]
                  (when-first [l lefts] ; fails for leftmost (thus top)
                    (Loc. l [(rest lefts) p' (cons t rights)] z))))
-  (right [this] (let [[lefts p' rights] p]
+  (right [_] (let [[lefts p' rights] p]
                   (when-first [r rights] ; fails for rightmost (thus top)
                     (Loc. r [(cons t lefts) p' (rest rights)] z))))
-  (up [this] (when (not= top p)
+  (up [_] (when (not= top p)
                (let [[lefts p' rights] p]
                  (Loc. (->Siblings lefts t rights z) p' z))))
-  (down [this] (if (instance? Siblings t)
+  (down [_] (if (instance? Siblings t)
                  (let [[lmts mt rmts] ((juxt :lefts :t :rights) t)]
                    (Loc. mt [lmts p rmts] z))
                  (when-let [[t' z'] (z/z-dn z t)]
                    (when-first [c t']
                      (Loc. c [() p (rest t')] z')))))
-  (change [this t] (Loc. t p z))
+  (change [_ t] (Loc. t p z))
   (insert-left [this l] (if (not= top p)
                           (let [[lefts p' rights] p
                                 node [(cons l lefts) p' rights]]
@@ -52,7 +52,7 @@
                        r (Loc. r [lefts parent (sequence rs)] z)
                        l (Loc. l [(sequence ls) parent rights] z)
                        ;; Re-cast the Siblings as a mere Section
-                       true (let [[t' z'] (z/z-up z ())]
+                       :else (let [[t' z'] (z/z-up z ())]
                               (Loc. t' parent z'))))
                    (throw (ex-info "Can't remove at top" {:loc this :t t})))))
 

@@ -34,4 +34,4 @@
 (defn nth-child [loc n] (cond
                           (zero? n) (throw (ex-info "Only positive integers allowed to identify the nth child." {:loc loc :n n}))
                           (= 1 n) (down loc)
-                          true (right (nth-child loc (dec n)))))
+                          :else (right (nth-child loc (dec n)))))
